@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "AutoDistroKidBimz",
+  "description": "Marca todas as faixas como instrumentais no upload do DistroKid.",
+  "version": "0.4.0",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": ["https://distrokid.com/*"],
+  "action": {
+    "default_title": "AutoDistroKidBimz",
+    "default_popup": "popup/popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://distrokid.com/new*", "https://www.distrokid.com/new*"],
+      "js": ["content/distrokid-fill.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

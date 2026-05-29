@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AutoDistroKidBimz</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="header">
+        <div>
+          <p class="eyebrow">DistroKid /new</p>
+          <h1>AutoFill IA</h1>
+        </div>
+        <span class="status-dot" aria-hidden="true"></span>
+      </header>
+
+      <form id="instrumental-form" class="form">
+        <label class="field compact">
+          <span>Quantidade de músicas</span>
+          <input id="track-count" type="number" min="1" max="35" value="12" required>
+        </label>
+
+        <div class="button-row">
+          <button id="fill-button" type="submit">Preencher tudo</button>
+        </div>
+      </form>
+
+      <p id="status" class="status" role="status">Pronto.</p>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
