@@ -3,9 +3,9 @@ const trackCountInput = document.querySelector("#track-count");
 const fillButton = document.querySelector("#fill-button");
 const statusEl = document.querySelector("#status");
 
-const CONTENT_SCRIPT_VERSION = "auto-v4";
-const MARK_MESSAGE_TYPE = "AUTO_DISTROKID_RUN_V4";
-const PING_TYPE = "AUTO_DISTROKID_PING_V4";
+const CONTENT_SCRIPT_VERSION = "auto-v5";
+const MARK_MESSAGE_TYPE = "AUTO_DISTROKID_RUN_V5";
+const PING_TYPE = "AUTO_DISTROKID_PING_V5";
 
 function setStatus(message, tone = "") {
   statusEl.textContent = message;
@@ -79,6 +79,9 @@ async function runFill(event) {
     return;
   }
 
+  const instrumentalValue = document.querySelector('input[name="instrumental"]:checked')?.value;
+  const isInstrumental = instrumentalValue !== "nao";
+
   fillButton.disabled = true;
   setStatus("Executando fases...");
 
@@ -86,7 +89,7 @@ async function runFill(event) {
     const tab = await getActiveDistroKidTab();
     await ensureContentScript(tab.id);
 
-    const payload = { trackCount };
+    const payload = { trackCount, isInstrumental };
 
     let response;
     try {

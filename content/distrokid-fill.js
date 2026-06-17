@@ -1,7 +1,7 @@
 (() => {
-  const CONTENT_SCRIPT_VERSION = "auto-v4";
-  const MARK_MESSAGE_TYPE = "AUTO_DISTROKID_RUN_V4";
-  const PING_TYPE = "AUTO_DISTROKID_PING_V4";
+  const CONTENT_SCRIPT_VERSION = "auto-v5";
+  const MARK_MESSAGE_TYPE = "AUTO_DISTROKID_RUN_V5";
+  const PING_TYPE = "AUTO_DISTROKID_PING_V5";
 
   if (window.__autoDistroKidBimzVersion === CONTENT_SCRIPT_VERSION) {
     return;
@@ -103,24 +103,55 @@
     return true;
   }
 
-  // ── Fase 2: Instrumental ────────────────────────────────────────────────────
+  // ── Fase 0: Letras explícitas → Não ─────────────────────────────────────────
 
-  function getInstrumentalRadio(trackNumber) {
-    const selectors = [
-      `#js-instrumental-radio-button-${trackNumber}`,
-      `input.distroInstrumental[type="radio"][track="${trackNumber}"][value="1"]`,
-      `input[type="radio"][track="${trackNumber}"][name^="instrumental_"][value="1"]`
-    ];
-    return selectors.map(s => document.querySelector(s)).find(Boolean) || null;
+  async function fase0ExplicitNo(count) {
+    let marked = 0;
+    for (let track = 1; track <= count; track++) {
+      showStatus(`Fase 0: explícitas ${track}/${count}...`);
+      // Tenta por track attribute primeiro, depois por name^="explicit_"
+      const radio = await waitForElement(() =>
+        document.querySelector(`input[type="radio"][track="${track}"][name^="explicit_"][value="0"]`) ||
+        document.querySelector(`input[type="radio"][track="${track}"][name^="explicit_"][value="clean"]`) ||
+        document.querySelector(`input.distroExplicit[track="${track}"][value="0"]`) ||
+        document.querySelector(`input.distroExplicit[track="${track}"][value="clean"]`)
+      );
+      if (radio) {
+        await clickRadio(radio);
+        marked++;
+      }
+    }
+    return marked;
   }
 
-  async function fase2Instrumentais(count) {
+  // ── Fase 2: Instrumental ────────────────────────────────────────────────────
+
+  function getInstrumentalRadio(trackNumber, value = "1") {
+    if (value === "1") {
+      const selectors = [
+        `#js-instrumental-radio-button-${trackNumber}`,
+        `input.distroInstrumental[type="radio"][track="${trackNumber}"][value="1"]`,
+        `input[type="radio"][track="${trackNumber}"][name^="instrumental_"][value="1"]`
+      ];
+      return selectors.map(s => document.querySelector(s)).find(Boolean) || null;
+    } else {
+      const selectors = [
+        `#js-not-instrumental-radio-button-${trackNumber}`,
+        `input.distroInstrumental[type="radio"][track="${trackNumber}"][value="0"]`,
+        `input[type="radio"][track="${trackNumber}"][name^="instrumental_"][value="0"]`
+      ];
+      return selectors.map(s => document.querySelector(s)).find(Boolean) || null;
+    }
+  }
+
+  async function fase2Instrumentais(count, isInstrumental = true) {
+    const value = isInstrumental ? "1" : "0";
     const marked = [];
     const missed = [];
 
     for (let track = 1; track <= count; track++) {
       showStatus(`Fase 2: instrumental ${track}/${count}...`);
-      const radio = await waitForElement(() => getInstrumentalRadio(track));
+      const radio = await waitForElement(() => getInstrumentalRadio(track, value));
       if (!radio) { missed.push(track); continue; }
       await clickRadio(radio);
       marked.push(track);
@@ -137,14 +168,12 @@
     for (let track = 1; track <= count; track++) {
       showStatus(`Fase 3: IA faixa ${track}/${count}...`);
 
-      // Radio "Sim" — value="1" distingue do radio "Não"
       const gate = await waitForElement(
         () => document.querySelector(`input.distroAiGate[track="${track}"][value="1"]`)
       );
       if (!gate) { missed.push(track); continue; }
       await clickRadio(gate);
 
-      // Aguarda o modal SweetAlert2 abrir e encontra checkboxes dentro dele
       const musicCheckbox = await waitForElement(
         () => document.querySelector(".swal2-popup input.distroAiMusic"),
         6000
@@ -157,14 +186,29 @@
       );
       if (recordingFull) await clickCheckbox(recordingFull);
 
-      // Clica "Guardar" para fechar o modal
       const saveBtn = await waitForElement(
         () => document.querySelector(".swal2-popup button.swal2-confirm")
       );
       if (saveBtn) {
         await delay(80);
         saveBtn.click();
-        await delay(600); // Aguarda modal fechar antes da próxima faixa
+        await delay(600);
+      }
+
+      // Após primeira faixa, tenta "Apply these selections to all songs"
+      if (track === 1) {
+        const applyAll = await waitForElement(
+          () => document.querySelector(".ai-credits-item-title-apply-all"),
+          3000
+        );
+        if (applyAll) {
+          showStatus("Fase 3: aplicando IA para todas as faixas...");
+          applyAll.scrollIntoView({ block: "center" });
+          await delay(200);
+          applyAll.click();
+          await delay(800);
+          break; // Apply all cobre as demais faixas
+        }
       }
     }
 
@@ -186,7 +230,6 @@
 
     await delay(200);
 
-    // Clica em "Copia estes compositores para todas as canções neste álbum"
     const copyDiv = Array.from(document.querySelectorAll("div")).find(
       el => el.textContent.trim().startsWith("Copia estes compositores")
     );
@@ -195,7 +238,6 @@
     await delay(80);
     copyDiv.click();
 
-    // Aguarda 2s para o modal do SweetAlert2 aparecer
     await delay(2000);
 
     const execBtn = document.querySelector('button.swal2-confirm[aria-label="Confirmar"]');
@@ -209,7 +251,7 @@
 
   // ── Orquestrador principal ──────────────────────────────────────────────────
 
-  async function runAll({ trackCount, composerFirstName, composerLastName }) {
+  async function runAll({ trackCount, isInstrumental }) {
     const count = Number(trackCount || 12);
     if (!Number.isInteger(count) || count < 1 || count > 35) {
       throw new Error("Quantidade invalida. Use um numero entre 1 e 35.");
@@ -218,7 +260,10 @@
     showStatus(`Fase 1: configurando ${count} faixa(s)...`);
     await fase1SetSongCount(count);
 
-    const { marked, missed: missedInstrumental } = await fase2Instrumentais(count);
+    showStatus("Fase 0: marcando letras explícitas como Não...");
+    await fase0ExplicitNo(count);
+
+    const { marked, missed: missedInstrumental } = await fase2Instrumentais(count, isInstrumental !== false);
     const { missed: missedAi } = await fase3Ai(count);
 
     showStatus("Fase 4: preenchendo compositor...");

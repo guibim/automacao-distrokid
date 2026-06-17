@@ -154,6 +154,25 @@ button:disabled {
   background: var(--accent-strong);
 }
 
+.radio-group {
+  display: flex;
+  gap: 12px;
+}
+
+.radio-option {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 6px;
+}
+
+.radio-option input[type="radio"] {
+  cursor: pointer;
+  min-height: unset;
+  padding: 0;
+  width: auto;
+}
+
 .status {
   color: var(--muted);
   font-size: 12px;
